@@ -85,14 +85,13 @@ public class XposedModule implements IXposedHookLoadPackage {
 
     private void hideVideoRewardAd(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
-            findAndHookMethod("com.wepie.snake.module.a.c", lpparam.classLoader, "a", Activity.class, int.class, int.class, "com.wepie.ad.base.c", boolean.class, HashMap.class, new XC_MethodReplacement() {
+            findAndHookMethod("com.wepie.snake.module.advertisement.ADHelper", lpparam.classLoader, "showVideo", Activity.class, int.class, int.class, "com.wepie.ad.base.IAdShowCallback", boolean.class, HashMap.class, new XC_MethodReplacement() {
                 @Override
                 protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
                     try {
-                        Object listener = param.args[3];
-                        Log.d(LOG_TAG, "AdHelper show ad, listener:" + listener);
-                        listener.getClass().getDeclaredMethod("onSuccess", String.class).
-                                invoke(listener, "mimo_video");
+                        Object callback = param.args[3];
+                        callback.getClass().getDeclaredMethod("onSuccess", String.class).
+                                invoke(callback, "mimo_video");
                     } catch (Exception e) {
                         Log.w(LOG_TAG, e);
                     }
@@ -108,21 +107,24 @@ public class XposedModule implements IXposedHookLoadPackage {
 
     private void modifySingleGameScore(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
-            Class<?> modelClazz = findClass("com.wepie.snake.module.game.logic.a.b", lpparam.classLoader);
-            Field lengthField = modelClazz.getDeclaredField("a");
-            Field killField = modelClazz.getDeclaredField("b");
-            Field gameTimeField = modelClazz.getDeclaredField("e");
-            Field destroyLengthField = modelClazz.getDeclaredField("g");
-            Field collectField = modelClazz.getDeclaredField("j");
-            findAndHookMethod("com.wepie.snake.module.game.logic.b", lpparam.classLoader, "a", Context.class, "com.wepie.snake.module.game.logic.a.b", new XC_MethodHook() {
+            Class<?> modelClazz = findClass("com.wepie.snake.module.game.logic.entity.GameEndParam", lpparam.classLoader);
+            Field lengthField = modelClazz.getDeclaredField("length");
+            Field killField = modelClazz.getDeclaredField("kill");
+            Field gameTimeField = modelClazz.getDeclaredField("survivalTime");
+            Field destroyLengthField = modelClazz.getDeclaredField("destroyLength");
+            Field collectField = modelClazz.getDeclaredField("floaterCount");
+            findAndHookMethod("com.wepie.snake.module.game.logic.OffGameOverManager", lpparam.classLoader, "requestGameOverData", Context.class, modelClazz, "com.wepie.snake.net.http.handler.SendScoreHandler.Callback", new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    Object endGameParam = param.args[1];
                     Random rnd = new Random();
-                    lengthField.setInt(param.args[1], 100000 + rnd.nextInt(3000000));
-                    gameTimeField.setInt(param.args[1], 300 + rnd.nextInt(100));
-                    killField.setInt(param.args[1], 10 + rnd.nextInt(100));
-                    destroyLengthField.setInt(param.args[1], 13000 + rnd.nextInt(100000));
-                    collectField.setInt(param.args[1], 260 + rnd.nextInt(10));
+                    lengthField.setInt(endGameParam, 100000 + rnd.nextInt(3000000));
+                    gameTimeField.setInt(endGameParam, 300 + rnd.nextInt(100));
+                    killField.setInt(endGameParam, 10 + rnd.nextInt(100));
+                    destroyLengthField.setInt(endGameParam, 13000 + rnd.nextInt(100000));
+                    if (collectField.getInt(endGameParam) > 0) {
+                        collectField.setInt(endGameParam, 260 + rnd.nextInt(10));
+                    }
                 }
             });
         } catch (XposedHelpers.ClassNotFoundError | NoSuchMethodError e) {
